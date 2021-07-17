@@ -1,118 +1,130 @@
-import react from 'react';
-import TodoListTemplate from './components/js/TodoListTemplate';
-import Form from './components/js/Form';
-import TodoItemList from './components/js/TodoItemList';
+import React, { Component } from 'react';
+import TOC from "./components/TOC";
+import ReadContent from "./components/ReadContent";
+import CreateContent from "./components/CreateContent";
+import UpdateContent from "./components/UpdateContent";
+import Subject from "./components/Subject";
+import Control from "./components/Control";
+import './App.css';
 
-class App extends react.Component {
-  constructor(props) {
+class App extends Component {
+  constructor(props){
     super(props);
-    this.id=2;
+    this.max_content_id = 3;
+    //state의 값으로 사용하지 않은 이유?
+    //max_content_id는 UI에 영향을 주는 것이 아니기 때문에
+    //불필요한 렌더링을 방지하기 위해서!
     this.state = {
-      input: "",
-      todos: [
-        {id:0, content:'리액트공부1', isComplete:false},
-        {id:1, content:'리액트공부2', isComplete:true}
+      mode:'welcome',
+      selected_content_id:2,
+      subject:{title:'WEB', sub:'World Wide Web!'},
+      welcome:{title:'Welcome', desc:'Hello, React!!'},
+      contents:[
+        {id:1, title:'HTML', desc:'HTML is for information'},
+        {id:2, title:'CSS', desc:'CSS is for design'},
+        {id:3, title:'JavaScript', desc:'JavaScript is for interactive'} 
       ]
     }
-    this.handleChange = this.handleChange.bind(this);
-    this.handleCreate = this.handleCreate.bind(this);
-    this.handleKeyPress = this.handleKeyPress.bind(this);
-    this.handleToggle = this.handleToggle.bind(this);
-    this.handleRemove = this.handleRemove.bind(this);
   }
-
-  //todos안에 있는 객체들을 화면에 보여주기 위해 todos배열을 컴포넌트 배열로 변환
-  // 배열안의 원소를 모두 제곱하기
-  //const numbers = [1, 3, 5, 7, 9];
-  //const squared = numbers.map(number => number * number);
-  //console.log(numbers);
-  // [1, 9, 25, 49, 81]
-
-  handleChange(event) {
-    this.setState({
-      input: event.target.value
-    });
-  }
-
-  handleCreate() {
-    const { input,todos } = this.state;
-    if(input === "") {
-      alert("오늘 할 일을 입력해주세요!");
-      return;
-    }
-    this.setState({
-      input: "",
-      //최적화할 떄 새 배열을 비교하여 리렌더링을 방지해야 하는데,
-      //push를 사용한다면 최적화 할 수 없게 되므로 concat사용
-      todos: todos.concat({
-        id: this.id++,
-        content: input,
-        isComplete: false
-      })
-    });
-  }
-
-  handleKeyPress(event) {
-    if(event.key === "Enter") {
-      this.handleCreate();
-    }
-  }
-
-  handleToggle(id) {
-    const todos = this.state.todos;
-
-    const isComplete = todos.find(todo => todo.id === id).isComplete;
-    if(!window.confirm(isComplete ? "미완료 처리 하시겠습니까?" : "완료 처리 하시겠습니까?")) {
-      return;
-    }
-
-    //파라미터로 받은 id로 몇번째 아이템인지 찾기
-    const index = todos.findIndex(todo => todo.id === id);
-
-    //선택한 객체 저장
-    const selected = todos[index];
-
-    //배열 복사
-    const nextTodos = [...todos];
-
-    //기존 값 복사 후 isComplete값 덮어쓰기
-    nextTodos[index] = {
-      ...selected,
-      isComplete : !selected.isComplete
-    };
-
-    this.setState({
-      todos: nextTodos
-    });
-  }
-
-  handleRemove(id) {
-      const todos = this.state.todos;
-
-      const removeContent = todos.find(todo => todo.id === id).content;
-      if(!window.confirm("'" + removeContent + "' 을 삭제하시겠습니까?")) {
-          return;
+  //리팩토링 된 부분 기억하기
+  getReadContent() {
+    var i = 0;
+    while(i < this.state.contents.length) {
+      var data = this.state.contents[i];
+      if(data.id === this.state.selected_content_id) {
+        return data;
       }
-
-      this.setState({
-          todos : todos.filter(todo => todo.id !== id)
-      });
+      i = i + 1;
+    }
   }
+  getContent() {
+    var _title, _desc, _article = null;
+    if(this.state.mode === 'welcome') {
+      _title = this.state.welcome.title;
+      _desc = this.state.welcome.desc;
+      _article = <ReadContent title={_title} desc={_desc}></ReadContent>
+    } else if(this.state.mode === 'read') {
+      var _content = this.getReadContent();
+      _article = <ReadContent title={_content.title} desc={_content.desc}></ReadContent>
+    } else if(this.state.mode === 'create') {
+      _article = <CreateContent onSubmit={function(_title, _desc){
+        //add content to this.state.contents
+        this.max_content_id = this.max_content_id+1;
 
+        //concat -> Array.from
+        var _contents = Array.from(this.state.contents);
+        _contents.push({id:this.max_content_id, title:_title, desc:_desc});
+        this.setState({
+          contents: _contents,
+          mode: 'read',
+          selected_content_id:this.max_content_id
+        });
+      }.bind(this)}></CreateContent>
+    } else if(this.state.mode === 'update') {
+      _content = this.getReadContent();
+      _article = <UpdateContent data={_content} onSubmit={
+        function(_id,_title, _desc){
+          var _contents = Array.from(this.state.contents);
+          var i = 0;
+          while(i < _contents.length) {
+            if(_contents[i].id === _id) {
+              _contents[i] = {id:_id, title:_title, desc:_desc}
+              break;
+            }
+            i = i + 1;
+          }
+          this.setState({
+            contents: _contents,
+            mode: 'read'
+          });
+      }.bind(this)}></UpdateContent>
+    }
+    return _article;
+  }
   render() {
     return (
-      <TodoListTemplate form={(
-      <Form
-       value={this.state.input}
-       onChange={this.handleChange}
-       onCreate={this.handleCreate}
-       onKeyPress={this.handleKeyPress} />
-      )}>
-        <TodoItemList
-            todos={this.state.todos}
-            onToggle={this.handleToggle}
-            onRemove={this.handleRemove} />
-      </TodoListTemplate>
+      <div className="App">
+        <Subject 
+          title={this.state.subject.title} 
+          sub={this.state.subject.sub}
+          onChangePage={function(){
+            this.setState({mode:'welcome'});
+          }.bind(this)}
+        ></Subject>
+        <TOC 
+          onChangePage={function(id){
+            this.setState({
+              mode:'read',
+              selected_content_id:Number(id) 
+            });
+          }.bind(this)} 
+          data={this.state.contents}></TOC>
+        <Control onChangeMode={function(_mode){
+          if(_mode === 'delete') {
+            if(window.confirm('really?')) {
+              var _contents = Array.from(this.state.contents);
+              var i = 0;
+              while(i < _contents.length) {
+                if(_contents[i].id === this.state.selected_content_id) {
+                  _contents.splice(i,1);
+                  break;
+                }
+                i = i + 1;
+              }
+              this.setState({
+                mode:'welcome',
+                contents:_contents
+              });
+              alert('deleted!');
+            }
+          } else {
+            this.setState({
+              mode:_mode
+            });
+          }
+        }.bind(this)}></Control>
+        {this.getContent()}
+      </div>
     );
   }
 }
